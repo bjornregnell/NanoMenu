@@ -10,20 +10,24 @@ object NanoMenu {
 
   trait MenuTree  
   case class MenuBranch(name: String, mnemonic: Int, menus: MenuTree*) extends MenuTree {
-    def addTo(parent: JComponent) {
+    def addTo(parent: JComponent): Map[String, JComponent] = {
+      var menuMap: Map[String, JComponent] = Map()
       def iter(parent: JComponent, menus: Seq[MenuTree]): Unit = menus.foreach( _ match {
         case m: MenuLeaf => 
           val jmi = new JMenuItem(m.name, m.shortcut)
           jmi.addActionListener(m.action)
           if (m.accelerator>0) jmi.setAccelerator(KeyStroke.getKeyStroke(m.accelerator, m.mask))
           parent.add(jmi)
+          menuMap += m.name -> jmi
         case m: MenuBranch =>
           val jm = new JMenu(m.name)
           if (m.mnemonic>0) jm.setMnemonic(mnemonic)
           parent.add(jm)
+          menuMap += m.name -> jm
           iter(jm, m.menus)
       } )
       iter(parent, Seq(this))
+      menuMap
     }
   }
   case class MenuLeaf(name: String, shortcut: Int, accelerator: Int, mask: Int)(block: => Unit) 
@@ -33,10 +37,10 @@ object NanoMenu {
     }
   }
   case class AppMenus(menus: MenuBranch*) {
-    def addTo(frame: JFrame) {
+    def addTo(frame: JFrame): Map[String, JComponent]  = {
       val menuBar = new JMenuBar()
       frame.setJMenuBar(menuBar)
-      menus.foreach(_.addTo(menuBar))
+      menus.map(_.addTo(menuBar)).reduceLeft(_ ++ _)
     }
   }
 
@@ -60,10 +64,10 @@ object NanoMenu {
       )
       val frame = new JFrame("nanomenu.test()")
       frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-      menus.addTo(frame)
+      val menuMap = menus.addTo(frame)
       frame.pack()
       frame.setVisible(true)
-      frame
+      menuMap
     }
   }
 
